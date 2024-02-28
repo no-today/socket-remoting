@@ -2,6 +2,12 @@
 
 ## Usage example
 
+### setting log level
+
+```java
+LogUtil.setLevel(LogUtil.Level.DEBUG);
+```
+
 ### start the service and client
 
 ```java

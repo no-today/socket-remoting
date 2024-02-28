@@ -3,6 +3,7 @@ package io.github.no.today.socket.remoting;
 import io.github.no.today.socket.remoting.core.ChannelContext;
 import io.github.no.today.socket.remoting.core.SocketRemotingClient;
 import io.github.no.today.socket.remoting.core.SocketRemotingServer;
+import io.github.no.today.socket.remoting.core.supper.LogUtil;
 import io.github.no.today.socket.remoting.core.supper.ResultCallback;
 import io.github.no.today.socket.remoting.protocol.RemotingCommand;
 import io.github.no.today.socket.remoting.protocol.RemotingSystemCode;
@@ -25,6 +26,10 @@ public class RemotingServerTest extends TestCase {
 
     RemotingServer server = null;
     RemotingClient client = null;
+
+    static {
+        LogUtil.setLevel(LogUtil.Level.DEBUG);
+    }
 
     public void setUp() throws Exception {
         server = new SocketRemotingServer(PORT);

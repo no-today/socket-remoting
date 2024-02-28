@@ -9,7 +9,20 @@ import java.time.format.DateTimeFormatter;
  */
 public class LogUtil {
 
+    private static Level level = Level.WARN;
+
+    public enum Level {
+        DEBUG,
+        INFO,
+        WARN,
+        ERROR
+    }
+
     private final static DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
+
+    public static void setLevel(Level level) {
+        LogUtil.level = level;
+    }
 
     private static void println(String level, String format, Object[] args) {
         format = format.replace("{}", "%s");
@@ -17,18 +30,26 @@ public class LogUtil {
     }
 
     public static void debug(String format, Object... args) {
-        println("DEBUG", format, args);
+        if (Level.DEBUG.ordinal() == level.ordinal()) {
+            println("DEBUG", format, args);
+        }
     }
 
     public static void info(String format, Object... args) {
-        println("INFO ", format, args);
+        if (Level.INFO.ordinal() >= level.ordinal()) {
+            println("INFO ", format, args);
+        }
     }
 
     public static void warn(String format, Object... args) {
-        println("WARN ", format, args);
+        if (Level.WARN.ordinal() >= level.ordinal()) {
+            println("WARN ", format, args);
+        }
     }
 
     public static void error(String format, Object... args) {
-        println("ERROR", format, args);
+        if (Level.ERROR.ordinal() >= level.ordinal()) {
+            println("ERROR", format, args);
+        }
     }
 }

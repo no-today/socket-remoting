@@ -2,6 +2,7 @@ package io.github.no.today.socket.remoting;
 
 import io.github.no.today.socket.remoting.core.SocketRemotingClient;
 import io.github.no.today.socket.remoting.core.SocketRemotingServer;
+import io.github.no.today.socket.remoting.core.supper.LogUtil;
 import io.github.no.today.socket.remoting.protocol.RemotingCommand;
 import io.github.no.today.socket.remoting.protocol.RemotingSystemCode;
 import junit.framework.TestCase;
@@ -20,6 +21,9 @@ public class QuickStartTest extends TestCase {
     public static final int PORT = 20300;
 
     public void test() throws Exception {
+        // Set logging level
+        LogUtil.setLevel(LogUtil.Level.DEBUG);
+
         // 1. Create server instance
         RemotingServer server = new SocketRemotingServer(PORT);
 
