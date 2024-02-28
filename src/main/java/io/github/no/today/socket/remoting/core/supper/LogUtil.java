@@ -9,7 +9,7 @@ import java.time.format.DateTimeFormatter;
  */
 public class LogUtil {
 
-    private static Level level = Level.WARN;
+    private static Level level = Level.INFO;
 
     public enum Level {
         DEBUG,
