@@ -11,13 +11,11 @@ import lombok.SneakyThrows;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.Collections;
-import java.util.List;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.github.no.today.socket.remoting.core.supper.RemotingUtil.exceptionSimpleDesc;
@@ -28,23 +26,33 @@ import static io.github.no.today.socket.remoting.core.supper.RemotingUtil.except
  */
 public class SocketRemotingServer extends AbstractSocketRemoting implements RemotingServer {
 
+    private static final int DEFAULT_HEARTBEAT_TIMEOUT_SECONDS = 60;
+
     private final AtomicBoolean stopped = new AtomicBoolean(false);
 
     private ServerSocket server;
     private final int port;
+
+    /**
+     * Heartbeat timeout seconds,
+     * If there is no heartbeat for a long time, the server will disconnect
+     */
+    private final int heartbeatTimeoutSeconds;
+
     private final Timer timer = new Timer("ServerHouseKeepingService", true);
     private final ExecutorService callbackExecutor;
 
     private final ConcurrentHashMap<String, ChannelContext> channelTable = new ConcurrentHashMap<>();
 
-    public SocketRemotingServer(int port, int permitsAsync, int permitsOneway, int callbackExecutorThreads) {
+    public SocketRemotingServer(int port, int heartbeatTimeoutSeconds, int permitsAsync, int permitsOneway, int callbackExecutorThreads) {
         super(permitsAsync, permitsOneway);
         this.port = port;
+        this.heartbeatTimeoutSeconds = heartbeatTimeoutSeconds;
         this.callbackExecutor = Executors.newFixedThreadPool(callbackExecutorThreads, RemotingUtil.newThreadFactory("ServerCallbackExecutor"));
     }
 
     public SocketRemotingServer(int port) {
-        this(port, 65535, 65535, 4);
+        this(port, DEFAULT_HEARTBEAT_TIMEOUT_SECONDS, DEFAULT_PERMITS_ASYNC, DEFAULT_PERMITS_ASYNC, Runtime.getRuntime().availableProcessors());
     }
 
     @Override
@@ -56,7 +64,7 @@ public class SocketRemotingServer extends AbstractSocketRemoting implements Remo
         server = new ServerSocket(port);
         LogUtil.info("Server listening [{}:{}]", RemotingUtil.getLocalAddress(), port);
 
-        registerPingHandle();
+        registerHeartbeatHandler();
         setup();
 
         while (!stopped.get()) {
@@ -85,10 +93,43 @@ public class SocketRemotingServer extends AbstractSocketRemoting implements Remo
                 }
             }
         }, 1000, 1000);
+
+        timer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                scanChannelTable();
+            }
+        }, 1000, TimeUnit.SECONDS.toMillis(heartbeatTimeoutSeconds));
     }
 
-    private void registerPingHandle() {
-        registerProcessor(RemotingSystemCode.COMMAND_CODE_PINT, (ctx, req) -> req);
+    /**
+     * Scan channel table, close timed out connection
+     */
+    private void scanChannelTable() {
+        List<ChannelContext> toList = new LinkedList<>();
+        Iterator<Map.Entry<String, ChannelContext>> it = channelTable.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<String, ChannelContext> next = it.next();
+            ChannelContext ctx = next.getValue();
+
+            if (ctx.getLastHeartbeatTime() + TimeUnit.SECONDS.toMillis(heartbeatTimeoutSeconds) <= System.currentTimeMillis()) {
+                it.remove();
+                toList.add(ctx);
+
+                LogUtil.warn("Close timeout client, [{}]", ctx.getPeer());
+            }
+        }
+
+        for (ChannelContext ctx : toList) {
+            closeClient(ctx);
+        }
+    }
+
+    private void registerHeartbeatHandler() {
+        registerProcessor(RemotingSystemCode.COMMAND_CODE_PINT, (ctx, req) -> {
+            ctx.refreshHeartbeat();
+            return req;
+        });
     }
 
     @Override
@@ -114,9 +155,12 @@ public class SocketRemotingServer extends AbstractSocketRemoting implements Remo
     }
 
     private void closeClient(ChannelContext ctx) {
-        ctx.stopped();
-        channelTable.remove(ctx.getPeer());
-        ctx.close();
+        try {
+            ctx.stopped();
+            channelTable.remove(ctx.getPeer());
+            ctx.close();
+        } catch (Exception ignore) {
+        }
     }
 
     @Override

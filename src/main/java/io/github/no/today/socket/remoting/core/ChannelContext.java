@@ -24,6 +24,9 @@ public class ChannelContext implements AutoCloseable {
     private final String peer;
 
     @Getter
+    private long lastHeartbeatTime;
+
+    @Getter
     private final DataInputStream reader;
     private final DataOutputStream writer;
 
@@ -33,10 +36,15 @@ public class ChannelContext implements AutoCloseable {
         this.peer = peer;
         this.reader = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
         this.writer = new DataOutputStream(new BufferedOutputStream(socket.getOutputStream()));
+        this.lastHeartbeatTime = System.currentTimeMillis();
     }
 
     public void stopped() {
         stopped.set(true);
+    }
+
+    public void refreshHeartbeat() {
+        this.lastHeartbeatTime = System.currentTimeMillis();
     }
 
     public boolean isChannelClosed() {

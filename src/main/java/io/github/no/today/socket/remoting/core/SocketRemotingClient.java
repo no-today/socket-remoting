@@ -25,12 +25,21 @@ import static io.github.no.today.socket.remoting.core.supper.RemotingUtil.except
  */
 public class SocketRemotingClient extends AbstractSocketRemoting implements RemotingClient {
 
-    private final AtomicBoolean connected = new AtomicBoolean(false);
-    private final AtomicBoolean stopped = new AtomicBoolean(false);
+    private static final boolean DEFAULT_AUTO_RECONNECT = false;
+    private static final int DEFAULT_HEARTBEAT_INTERVAL_SECONDS = 20;
+
+    private final AtomicBoolean connected = new AtomicBoolean(DEFAULT_AUTO_RECONNECT);
+    private final AtomicBoolean stopped = new AtomicBoolean(DEFAULT_AUTO_RECONNECT);
 
     private ChannelContext ctx;
     private final String host;
     private final int port;
+
+    /**
+     * Send ping packets to the server every once in a while,
+     * If the server does not receive the message for a long time, the connection will be interrupted.
+     */
+    private final int heartbeatIntervalSeconds;
 
     /**
      * Automatically reconnect in case of exception, always stay connect
@@ -43,20 +52,21 @@ public class SocketRemotingClient extends AbstractSocketRemoting implements Remo
     private final Timer timer = new Timer("ClientHouseKeepingService", true);
     private final ExecutorService callbackExecutor;
 
-    public SocketRemotingClient(String host, int port, boolean autoReconnect, int permitsAsync, int permitsOneway, int callbackExecutorThreads) {
+    public SocketRemotingClient(String host, int port, boolean autoReconnect, int heartbeatIntervalSeconds, int permitsAsync, int permitsOneway, int callbackExecutorThreads) {
         super(permitsAsync, permitsOneway);
         this.host = host;
         this.port = port;
         this.autoReconnect = autoReconnect;
+        this.heartbeatIntervalSeconds = heartbeatIntervalSeconds;
         this.callbackExecutor = Executors.newFixedThreadPool(callbackExecutorThreads, RemotingUtil.newThreadFactory("ClientCallbackExecutor"));
     }
 
     public SocketRemotingClient(String host, int port, boolean autoReconnect) {
-        this(host, port, autoReconnect, 65535, 65535, Runtime.getRuntime().availableProcessors() * 2);
+        this(host, port, autoReconnect, DEFAULT_HEARTBEAT_INTERVAL_SECONDS, DEFAULT_PERMITS_ASYNC, DEFAULT_PERMITS_ASYNC, Runtime.getRuntime().availableProcessors() * 2);
     }
 
     public SocketRemotingClient(String host, int port) {
-        this(host, port, false);
+        this(host, port, DEFAULT_AUTO_RECONNECT);
     }
 
     @Override
@@ -77,7 +87,7 @@ public class SocketRemotingClient extends AbstractSocketRemoting implements Remo
 
                 listener(ctx);
             } catch (Exception e) {
-                boolean older = connected.getAndSet(false);
+                boolean older = connected.getAndSet(DEFAULT_AUTO_RECONNECT);
                 if (older) {
                     LogUtil.error("Service is not available, disconnect");
                 } else {
@@ -115,7 +125,7 @@ public class SocketRemotingClient extends AbstractSocketRemoting implements Remo
             public void run() {
                 ping();
             }
-        }, 1000, 3000);
+        }, 1000, TimeUnit.SECONDS.toMillis(heartbeatIntervalSeconds));
     }
 
     @SneakyThrows
@@ -125,7 +135,7 @@ public class SocketRemotingClient extends AbstractSocketRemoting implements Remo
         });
     }
 
-    private void listener(ChannelContext ctx) throws Exception {
+    private void listener(ChannelContext ctx) {
         while (!stopped.get() && !ctx.isChannelClosed()) {
 
             RemotingCommand command = RemotingCommand.decode(ctx.getReader());
@@ -136,7 +146,7 @@ public class SocketRemotingClient extends AbstractSocketRemoting implements Remo
     @Override
     @SneakyThrows
     public void disconnect() {
-        if (stopped.compareAndSet(false, true)) {
+        if (stopped.compareAndSet(DEFAULT_AUTO_RECONNECT, true)) {
             timer.cancel();
             callbackExecutor.shutdown();
             if (ctx != null) ctx.close();

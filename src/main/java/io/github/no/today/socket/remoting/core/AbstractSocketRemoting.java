@@ -20,6 +20,7 @@ import static io.github.no.today.socket.remoting.core.supper.RemotingUtil.except
  * @date 2024/02/26 15:38
  */
 public abstract class AbstractSocketRemoting implements RemotingProcessable {
+    protected static final int DEFAULT_PERMITS_ASYNC = 65535;
 
     /**
      * 异步命令信号量, 控制异步调用的并发数量, 从而保护系统内存
@@ -91,10 +92,10 @@ public abstract class AbstractSocketRemoting implements RemotingProcessable {
 
     // ----------------------------------------------------------------------
 
-    protected void processMessageReceived(ChannelContext ctx, RemotingCommand cmd) throws Exception {
+    protected void processMessageReceived(ChannelContext ctx, RemotingCommand cmd) {
         if (cmd == null) return;
         if (cmd.isResponse()) {
-            processResponse(ctx, cmd);
+            processResponse(cmd);
         } else {
             processRequest(ctx, cmd);
         }
@@ -155,7 +156,7 @@ public abstract class AbstractSocketRemoting implements RemotingProcessable {
         }
     }
 
-    public void processResponse(ChannelContext ctx, RemotingCommand response) throws Exception {
+    public void processResponse(RemotingCommand response) {
         int reqId = response.getReqId();
         ResponseFuture future = this.responseTable.remove(reqId);
         if (null != future) {
