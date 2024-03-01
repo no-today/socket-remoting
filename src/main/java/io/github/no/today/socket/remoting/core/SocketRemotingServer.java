@@ -187,4 +187,9 @@ public class SocketRemotingServer extends AbstractSocketRemoting implements Remo
     public List<String> getChannels() {
         return Collections.list(channelTable.keys());
     }
+
+    @Override
+    public boolean isConnected(String peer) {
+        return channelTable.containsKey(peer);
+    }
 }

@@ -49,4 +49,11 @@ public interface RemotingServer extends RemotingProcessable {
      * 获取全部连接名
      */
     List<String> getChannels();
+
+    /**
+     * 检查是否连接了
+     *
+     * @param peer 目标客户端
+     */
+    boolean isConnected(String peer);
 }
