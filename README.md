@@ -28,7 +28,7 @@ new Thread(client::connect).start();
 ```java
 // Add a processor to the server, cmd code is 1024, this handler will return the request unchanged, you can also add the processor after the service is started
 int serverCmd = 1024;
-server.registerProcessor(serverCmd, (ctx, request) -> request.setCode(RemotingSystemCode.SUCCESS));
+server.registerProcessor(serverCmd, (ctx, req) -> req.setCode(RemotingSystemCode.SUCCESS));
 
 // The client can also process instructions issued by the server, which is bidirectional.
 int clientCmd = 2048;
@@ -59,7 +59,7 @@ client.asyncRequest(request, 3000, (res, err) -> {
 });
 
 // Oneway request to server, no response required
-client.onewayRequest(request, 3000, (req, err) -> {
+client.onewayRequest(request, 3000, (res, err) -> {
     if (err != null) {
         // failure
         System.out.println("Async request failure: " + err);
@@ -94,7 +94,7 @@ server.asyncRequest(client, request, 3000, (res, err) -> {
 });
 
 // Oneway request to client, no response required
-server.onewayRequest(client, request, 3000, (req, err) -> {
+server.onewayRequest(client, request, 3000, (res, err) -> {
     if (err != null) {
         // failure
         System.out.println("Async request failure: " + err);

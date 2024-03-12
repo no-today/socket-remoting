@@ -29,7 +29,7 @@ public class QuickStartTest extends TestCase {
 
         // 2. Add a processor to the server, cmd code is 1024, this handler will return the request unchanged, you can also add the processor after the service is started
         int serverCmd = 1024;
-        server.registerProcessor(serverCmd, (ctx, request) -> request.setCode(RemotingSystemCode.SUCCESS));
+        server.registerProcessor(serverCmd, (ctx, req) -> req.setCode(RemotingSystemCode.SUCCESS));
 
         // 3. When starting the server, there will be an infinite loop inside to receive client connections, so it needs to be executed asynchronously.
         new Thread(server::start).start();
@@ -80,7 +80,7 @@ public class QuickStartTest extends TestCase {
         });
 
         // Oneway request to client, no response required
-        server.onewayRequest(client, request, 3000, (req, err) -> {
+        server.onewayRequest(client, request, 3000, (res, err) -> {
             if (err != null) {
                 // failure
                 System.out.println("Async request failure: " + err);
@@ -110,7 +110,7 @@ public class QuickStartTest extends TestCase {
         });
 
         // Oneway request to server, no response required
-        client.onewayRequest(request, 3000, (req, err) -> {
+        client.onewayRequest(request, 3000, (res, err) -> {
             if (err != null) {
                 // failure
                 System.out.println("Async request failure: " + err);
